@@ -229,6 +229,8 @@ def ppo_config():
 # %%
 config = ppo_config()
 eval_prompts = ['I was extremely disappointed '] * config.train.batch_size
+
+#%% 
 trainer = train(
     reward_fn = reward_model,
     prompts = prompts,
@@ -262,4 +264,28 @@ def generate_completion(prompt,trainer) -> str:
 # %%
 def neutral_reward_model(samples: List[str], **kwargs) -> List[float]:
     # YOUR CODE HERE - define a reward function that returns high reward for neutral sentiment
-    pass
+    positive_reward = reward_model(samples, **kwargs)
+    return [0.5 - abs(0.5 - reward) for reward in positive_reward]
+
+trainer_neutral = train(
+    reward_fn = neutral_reward_model,
+    prompts = prompts,
+    eval_prompts = eval_prompts,
+    config = config
+)
+# %%
+gc.collect()
+t.cuda.empty_cache()
+
+def negative_reward_model(samples: List[str], **kwargs) -> List[float]:
+    # YOUR CODE HERE - define a reward function that returns high reward for neutral sentiment
+    positive_reward = reward_model(samples, **kwargs)
+    return [1 - reward for reward in positive_reward]
+
+trainer_negative = train(
+    reward_fn = negative_reward_model,
+    prompts = prompts,
+    eval_prompts = eval_prompts,
+    config = config
+)
+# %%
