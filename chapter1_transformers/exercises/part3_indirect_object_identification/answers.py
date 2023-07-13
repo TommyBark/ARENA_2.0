@@ -66,3 +66,52 @@ imshow(W_Q_dot_products)
 example_prompt = "After John and Mary went to the store, John gave a bottle of milk to"
 example_answer = " Mary"
 utils.test_prompt(example_prompt, example_answer, model, prepend_bos=True)
+
+# %%
+example_prompt = "After John and Mary went to the store, Mary being his wife, John gave a bottle of milk to"
+example_answer = " Mary"
+utils.test_prompt(example_prompt, example_answer, model, prepend_bos=True)
+# %%
+prompt_format = [
+    "When John and Mary went to the shops,{} gave the bag to",
+    "When Tom and James went to the park,{} gave the ball to",
+    "When Dan and Sid went to the shops,{} gave an apple to",
+    "After Martin and Amy went to the park,{} gave a drink to",
+]
+name_pairs = [
+    (" John", " Mary"),
+    (" Tom", " James"),
+    (" Dan", " Sid"),
+    (" Martin", " Amy"),
+]
+
+# Define 8 prompts, in 4 groups of 2 (with adjacent prompts having answers swapped)
+prompts = [
+    prompt.format(name)
+    for (prompt, names) in zip(prompt_format, name_pairs)
+    for name in names[::-1]
+]
+# Define the answers for each prompt, in the form (correct, incorrect)
+answers = [names[::i] for names in name_pairs for i in (1, -1)]
+# Define the answer tokens (same shape as the answers)
+answer_tokens = t.concat(
+    [model.to_tokens(names, prepend_bos=False).T for names in answers]
+)
+
+rprint(prompts)
+rprint(answers)
+rprint(answer_tokens)
+
+table = Table("Prompt", "Correct", "Incorrect", title="Prompts & Answers:")
+
+for prompt, answer in zip(prompts, answers):
+    table.add_row(prompt, repr(answer[0]), repr(answer[1]))
+
+rprint(table)
+# %%
+tokens = model.to_tokens(prompts, prepend_bos=True)
+# Move the tokens to the GPU
+tokens = tokens.to(device)
+# Run the model and cache all activations
+original_logits, cache = model.run_with_cache(tokens)
+# %%

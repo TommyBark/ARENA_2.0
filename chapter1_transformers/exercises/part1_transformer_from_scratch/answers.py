@@ -410,7 +410,7 @@ class TransformerTrainingArgs:
     log_every = 10
     lr = 1e-3
     weight_decay = 1e-2
-    log_dir: str = os.getcwd() + "/logs"
+    log_dir: str = os.getcwd() + "/logs/day1/"
     log_name: str = "day1-transformer"
     run_name: Optional[str] = None
     log_every_n_steps: int = 1
@@ -736,4 +736,3 @@ for word in expected_top_5:
     assert (
         abs(observed_freq - expected_freq) < 0.015
     ), "Try increasing N if this fails by a small amount."
-# %%

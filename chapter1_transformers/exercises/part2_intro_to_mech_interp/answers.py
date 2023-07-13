@@ -889,3 +889,29 @@ for i in range(model.cfg.n_heads):
     new_induction_score = ablation_induction_score(i, 4)
     induction_score_change = new_induction_score - baseline_induction_score
     print(f"Ablation score change for head {i:02}: {induction_score_change:+.5f}")
+
+# %%
+# RUN PCA on gpt2_cache, recreating the plot from https://www.lesswrong.com/posts/X26ksz4p3wSyycKNB/gears-level-mental-models-of-transformer-interpretability#Residual_Stream_as_Output_Accumulation:~:text=The%20Models-,Residual%20Stream%20as%20Output%20Accumulation,-The%20residual%20stream
+
+from sklearn.decomposition import PCA
+import pandas as pd
+
+resid_post = [gpt2_cache["resid_post", i] for i in range(12)]
+resids = t.stack(resid_post)
+resids = einops.rearrange(resids, "layers context dmodel -> context layers dmodel")
+
+results_list = []
+for i in range(resids.shape[0]):
+    pca = PCA(n_components=10)
+    pca.fit(resids[i])
+    results_list.append(pca.explained_variance_ratio_)
+
+results = np.array(results_list)
+mean = results.mean(axis=0)
+std = results.std(axis=0)
+df = pd.DataFrame([mean, std]).T
+df.columns = ["y", "error_y"]
+
+fig = px.bar(df, y="y", error_y="error_y")
+fig.show()
+# %%
