@@ -8,29 +8,19 @@ import einops
 from dataclasses import dataclass
 from transformer_lens import HookedTransformer
 from transformer_lens.utils import gelu_new, tokenize_and_concatenate
-
-# %%
 import torch as t
 from torch import Tensor
 import torch.nn as nn
 import datasets
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
-
-# %%
 from pytorch_lightning.loggers import WandbLogger
-
-# %%
 import wandb
-
-# %%
 from typing import Tuple, List, Optional, Dict
 from jaxtyping import Float, Int
 from solutions import Embed, PosEmbed, Unembed, LitTransformer
 
 # %%
-
-
 @dataclass
 class Config:
     d_model: int = 768
@@ -91,7 +81,6 @@ model_zero = Zero_Layer_Transformer(cfg)
 dataset = datasets.load_dataset("NeelNanda/pile-10k", split="train").remove_columns(
     "meta"
 )
-# %%
 tokenized_dataset = tokenize_and_concatenate(
     dataset,
     reference_gpt2.tokenizer,
@@ -109,12 +98,42 @@ data_loader = DataLoader(
     pin_memory=True,
 )
 # %%
-litmodel_zero = LitTransformer(args, model_zero, data_loader)
-logger = WandbLogger(save_dir=args.log_dir, project=args.log_name, name=args.run_name)
+#litmodel_zero = LitTransformer(args, model_zero, data_loader)
+litmodel_zero = LitTransformer.load_from_checkpoint("/home/ubuntu/model_zero_e1.ckpt",args=args,model=model_zero, data_loader = data_loader)
+# %%
+# logger = WandbLogger(save_dir=args.log_dir, project=args.log_name, name=args.run_name)
+
+# # %%
+# trainer = pl.Trainer(
+#     max_epochs=args.max_epochs, logger=logger, log_every_n_steps=args.log_every_n_steps
+# )
+# trainer.fit(model=litmodel_zero, train_dataloaders=litmodel_zero.data_loader)
+# wandb.finish()
 
 # %%
-trainer = pl.Trainer(
-    max_epochs=args.max_epochs, logger=logger, log_every_n_steps=args.log_every_n_steps
-)
-trainer.fit(model=litmodel_zero, train_dataloaders=litmodel_zero.data_loader)
-wandb.finish()
+# 1. Look if W_E is inverse of W_U
+
+
+W_E = litmodel_zero.model.embed.W_E 
+W_pos = litmodel_zero.model.pos_embed.W_pos
+W_U = litmodel_zero.model.unembed.W_U
+logits = (W_E) @ W_U
+
+## TODO: look at those logits
+
+# %% 
+# 2. Observe if the model learned simple bigrams
+test_str = "Vol"
+test_tokens = t.tensor(reference_gpt2.tokenizer.encode(test_str)).unsqueeze(0)
+
+with t.no_grad():
+    for _ in range(10):
+        ans2 = litmodel_zero(test_tokens)
+        next_token = t.softmax(ans2[0,-1,:],dim=0).argmax().item()
+        print(next_token)
+        next_token_str = reference_gpt2.tokenizer.decode(next_token)
+        test_str += next_token_str
+        test_tokens = t.tensor(reference_gpt2.tokenizer.encode(test_str)).unsqueeze(0)
+
+## RESULTS: cannot see, model is too dumb probably
+# %%
