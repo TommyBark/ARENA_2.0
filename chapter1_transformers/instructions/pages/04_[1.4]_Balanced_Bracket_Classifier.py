@@ -1,8 +1,13 @@
-
 import os, sys
 from pathlib import Path
 chapter = r"chapter1_transformers"
-instructions_dir = Path(f"{os.getcwd().split(chapter)[0]}/{chapter}/instructions").resolve()
+for instructions_dir in [
+    Path(f"{os.getcwd().split(chapter)[0]}/{chapter}/instructions").resolve(),
+    Path("/app/arena_2.0/chapter1_transformers/instructions").resolve(),
+    Path("/mount/src/arena_2.0/chapter1_transformers/instructions").resolve(),
+]:
+    if instructions_dir.exists():
+        break
 if str(instructions_dir) not in sys.path: sys.path.append(str(instructions_dir))
 os.chdir(instructions_dir)
 
@@ -29,16 +34,17 @@ def section_0():
 </ul></li>""", unsafe_allow_html=True)
 
     st.markdown(r"""
-<img src="https://raw.githubusercontent.com/callummcdougall/TransformerLens-intro/main/images/page_images/gears2.png" width="350">
+# [1.4] Balanced Bracket Classifier
 
-Colab: [**exercises**](https://colab.research.google.com/drive/1BYarO508z7stRFXZ3T92rI6OtMqP3w7E) | [**solutions**](https://colab.research.google.com/drive/1yILyi5dD3wc4o3vHc1MfbpAlWljyXU-U)
+
+### Colab: [**exercises**](https://colab.research.google.com/drive/1BYarO508z7stRFXZ3T92rI6OtMqP3w7E) | [**solutions**](https://colab.research.google.com/drive/1yILyi5dD3wc4o3vHc1MfbpAlWljyXU-U)
 
 Please send any problems / bugs on the `#errata` channel in the [Slack group](https://join.slack.com/t/arena-la82367/shared_invite/zt-1uvoagohe-JUv9xB7Vr143pdx1UBPrzQ), and ask any questions on the dedicated channels for this chapter of material.
 
 You can toggle dark mode from the buttons on the top-right of this page.
 
 
-# [1.4] Balanced Bracket Classifier
+<img src="https://raw.githubusercontent.com/callummcdougall/TransformerLens-intro/main/images/page_images/gears2.png" width="350">
 
 
 ## Introduction
@@ -880,7 +886,7 @@ def get_activations(
     Uses hooks to return activations from the model.
 
     If names is a string, returns the activations for that hook name.
-    If names is a list of strings, returns a dictionary mapping hook names to tensors of activations.
+    If names is a list of strings, returns the cache containing only those activations.
     '''
     names_list = [names] if isinstance(names, str) else names
     _, cache = model.run_with_cache(
@@ -1671,11 +1677,12 @@ def get_out_by_neuron(
     seq: Optional[int] = None
 ) -> Float[Tensor, "batch *seq neuron d_model"]:
     '''
-    If seq is not None, then out[b, s, i, :] = f(x[b, s].T @ W_in[:, i]) @ W_out[i, :],
-    i.e. the vector which is written to the residual stream by the ith neuron (where x
-    is the input to the residual stream (i.e. shape (batch, seq, d_model)).
+    If seq is None, then out[batch, seq, i, :] = f(x[batch, seq].T @ W_in[:, i] + b_in[i]) @ W_out[i, :],
+    i.e. the vector which is written to the residual stream by the ith neuron (where x is the input to the
+    residual stream (i.e. shape (batch, seq, d_model)).
 
-    If seq is None, then out[b, i, :] = vector f(x[b].T @ W_in[:, i]) @ W_out[i, :]
+    If seq is not None, then out[batch, i, :] = f(x[batch, seq].T @ W_in[:, i]) @ W_out[i, :], i.e. we just
+    look at the sequence position given by argument seq.
 
     (Note, using * in jaxtyping indicates an optional dimension)
     '''
@@ -1716,11 +1723,12 @@ def get_out_by_neuron(
     seq: Optional[int] = None
 ) -> Float[Tensor, "batch *seq neuron d_model"]:
     '''
-    If seq is not None, then out[b, s, i, :] = f(x[b, s].T @ W_in[:, i]) @ W_out[i, :],
-    i.e. the vector which is written to the residual stream by the ith neuron (where x
-    is the input to the residual stream (i.e. shape (batch, seq, d_model)).
+    If seq is None, then out[batch, seq, i, :] = f(x[batch, seq].T @ W_in[:, i] + b_in[i]) @ W_out[i, :],
+    i.e. the vector which is written to the residual stream by the ith neuron (where x is the input to the
+    residual stream (i.e. shape (batch, seq, d_model)).
 
-    If seq is None, then out[b, i, :] = vector f(x[b].T @ W_in[:, i]) @ W_out[i, :]
+    If seq is not None, then out[batch, i, :] = f(x[batch, seq].T @ W_in[:, i]) @ W_out[i, :], i.e. we just
+    look at the sequence position given by argument seq.
 
     (Note, using * in jaxtyping indicates an optional dimension)
     '''
@@ -1904,9 +1912,10 @@ def get_q_and_k_for_given_input(
     tokenizer: SimpleTokenizer,
     parens: str, 
     layer: int, 
-) -> Tuple[Float[Tensor, "seq_d_model"], Float[Tensor,  "seq_d_model"]]:
+) -> Tuple[Float[Tensor, "seq n_head d_model"], Float[Tensor,  "seq n_head d_model"]]:
     '''
-    Returns the queries and keys (both of shape [seq, d_model]) for the given parns input, in the attention head `layer.head`.
+    Returns the queries and keys (both of shape [seq, d_head, d_model]) for the given parens string,
+    for all attention heads in the given layer.
     '''
     pass
 
@@ -1924,9 +1933,10 @@ def get_q_and_k_for_given_input(
     tokenizer: SimpleTokenizer,
     parens: str, 
     layer: int, 
-) -> Tuple[Float[Tensor, "seq_d_model"], Float[Tensor,  "seq_d_model"]]:
+) -> Tuple[Float[Tensor, "seq n_head d_model"], Float[Tensor,  "seq n_head d_model"]]:
     '''
-    Returns the queries and keys (both of shape [seq, d_model]) for the given parns input, in the attention head `layer.head`.
+    Returns the queries and keys (both of shape [seq, d_head, d_model]) for the given parens string,
+    for all attention heads in the given layer.
     '''
     # SOLUTION
     q_name = utils.get_act_name("q", layer)

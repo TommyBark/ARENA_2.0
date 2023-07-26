@@ -28,9 +28,9 @@ chapter_dir = r"./" if CHAPTER in os.listdir() else os.getcwd().split(CHAPTER)[0
 sys.path.append(chapter_dir + CHAPTER)
 instructions_dir = Path(f"{os.getcwd().split(CHAPTER)[0]}/{CHAPTER}/instructions").resolve()
 
-if (instructions_dir / ".streamlit/secrets.toml").exists():
+if (instructions_dir / ".streamlit/secrets.toml").exists() or not(is_local):
     openai.api_key = st.secrets["openai_api_key"]
-elif is_local:
+else:
     st.error("""Error - no API key found.
 
 We detect you are running the page locally, but haven't added the API key yet.
@@ -207,7 +207,7 @@ number of distances = {len(embedding_distances)}
 
 prompt_templates_dict = {
     "SIMPLE": """
-Try to answer the question based on the context below. If the question can't be answered based on the context, say \"I don't know how to answer that based on the context from this course, but I'll still try to answer.\", then answer the question like you normally would.\n\nContext: {context}\n\n---\n\nQuestion: {question}\nAnswer:
+Try to answer the question based on the context below. If the question can't be answered based on the context, say \"I don't know how to answer that based on the context from this course, but I'll still try to answer.\", then answer the question like you normally would.\n\nContext: {context}\n\n---\n\nQuestion: {question} Answer in detail.\nAnswer:
 """,
 
     "COMPLEX": """
@@ -228,7 +228,7 @@ Context:
 {context}
 ---------
 
-Question: {question}
+Question: {question} Answer in detail.
 
 Helpful Answer:
 """

@@ -37,17 +37,17 @@ def section_0():
 </ul></li>""", unsafe_allow_html=True)
 
     st.markdown(r"""
+# [2.3] - PPO
    
-<img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/football.jpeg" width="350">
-
-Colab: [**exercises**](https://colab.research.google.com/drive/1USZJy9HCpq8rsAqfD6yYfpAfZvO5YDha) | [**solutions**](https://colab.research.google.com/drive/1f_RBuosHddwQrydZ7-iAnBs6lhkMMMSG)
+### Colab: [**exercises**](https://colab.research.google.com/drive/1USZJy9HCpq8rsAqfD6yYfpAfZvO5YDha) | [**solutions**](https://colab.research.google.com/drive/1f_RBuosHddwQrydZ7-iAnBs6lhkMMMSG)
 
 Please send any problems / bugs on the `#errata` channel in the [Slack group](https://join.slack.com/t/arena-la82367/shared_invite/zt-1uvoagohe-JUv9xB7Vr143pdx1UBPrzQ), and ask any questions on the dedicated channels for this chapter of material.
 
 You can toggle dark mode from the buttons on the top-right of this page.
 
+<img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/football.jpeg" width="350">
 
-# [2.3] - PPO
+
 
 
 ## Introduction
@@ -149,7 +149,7 @@ There are 3 main classes you'll be using today:
 
 The image below shows the high-level details of this, and how they relate to the conceptual overview above.
 
-<img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/ppo-alg-objects-6.png" width="1300">
+<img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/ppo-alg-objects-diagram2.png" width="1300">
 
 Don't worry if this seems like a lot at first! We'll go through it step-by-step. You might find this diagram useful to return to, throughout the exercises (you're recommended to open it in a separate tab).
 
@@ -256,53 +256,6 @@ MAIN = __name__ == "__main__"
 
 ```
 
-## PPO Arguments
-
-Just like for DQN, we've provided you with a dataclass containing arguments for your `train_ppo` function. We've also given you a function from `utils` to display all these arguments (including which ones you've changed).
-
-Don't worry if these don't all make sense right now, they will by the end.
-
-
-```python
-@dataclass
-class PPOArgs:
-    exp_name: str = "PPO_Implementation"
-    seed: int = 1
-    cuda: bool = t.cuda.is_available()
-    log_dir: str = "logs"
-    use_wandb: bool = False
-    wandb_project_name: str = "PPOCart"
-    wandb_entity: str = None
-    capture_video: bool = True
-    env_id: str = "CartPole-v1"
-    total_timesteps: int = 500000
-    learning_rate: float = 0.00025
-    num_envs: int = 4
-    num_steps: int = 128
-    gamma: float = 0.99
-    gae_lambda: float = 0.95
-    num_minibatches: int = 4
-    batches_per_epoch: int = 4
-    clip_coef: float = 0.2
-    ent_coef: float = 0.01
-    vf_coef: float = 0.5
-    max_grad_norm: float = 0.5
-    minibatch_size: int = 128
-    mode: Literal["classic-control", "atari", "mujoco"] = "classic-control"
-
-    def __post_init__(self):
-        self.batch_size = self.num_steps * self.num_envs
-        assert self.batch_size % self.minibatch_size == 0, "batch_size must be divisible by minibatch_size"
-        self.total_epochs = self.total_timesteps // self.batch_size
-        self.total_training_steps = self.total_epochs * self.batches_per_epoch * (self.batch_size // self.minibatch_size)
-
-
-args = PPOArgs(minibatch_size=256)
-utils.arg_help(args)
-```
-
-
-
 """, unsafe_allow_html=True)
 
 
@@ -313,6 +266,7 @@ def section_1():
 ## Table of Contents
 
 <ul class="contents">
+    <li class='margtop'><a class='contents-el' href='#ppo-arguments'>PPO Arguments</a></li>
     <li class='margtop'><a class='contents-el' href='#actor-critic-agent-implementation-detail-2'>Actor-Critic Agent Implementation (detail #2)</a></li>
     <li><ul class="contents">
         <li><a class='contents-el' href='#exercise-implement-get-actor-and-critic'><b>Exercise</b> - implement <code>get_actor_and_critic</code></a></li>
@@ -331,7 +285,8 @@ def section_1():
         <li><a class='contents-el' href='#exercise-implement-ppoagent'><b>Exercise</b> - implement <code>PPOAgent</code></a></li>
 </ul></li>""", unsafe_allow_html=True)
 
-    st.markdown(r"""
+    st.markdown(
+r"""
 
 # 1️⃣ Setting up our agent
 
@@ -343,14 +298,58 @@ def section_1():
 > * Build a replay buffer to store & sample experiences
 > * Design an agent class to step through the environment & record experiences
 
-
 In this section, we'll do the following:
 
+* Define a dataclass to hold our PPO arguments
 * Write functions to create our actor and critic networks (which will eventually be stored in our `PPOAgent` instance)
 * Write a function to do **generalized advantage estimation** (this will be necessary when computing our objective function during the learning phase)
 * Fill in our `ReplayBuffer` class (for storing and sampling experiences)
-* Fill in our `PPOAgent` class (a wrapper around our networks and our replay buffer, which will turn them into an agent).
+* Fill in our `PPOAgent` class (a wrapper around our networks and our replay buffer, which will turn them into an agent)
 
+## PPO Arguments
+
+Just like for DQN, we've provided you with a dataclass containing arguments for your `train_ppo` function. We've also given you a function from `utils` to display all these arguments (including which ones you've changed).
+
+Don't worry if these don't all make sense right now, they will by the end.
+
+
+```python
+@dataclass
+class PPOArgs:
+	exp_name: str = "PPO_Implementation"
+	seed: int = 1
+	cuda: bool = t.cuda.is_available()
+	log_dir: str = "logs"
+	use_wandb: bool = False
+	wandb_project_name: str = "PPOCart"
+	wandb_entity: str = None
+	capture_video: bool = True
+	env_id: str = "CartPole-v1"
+	total_timesteps: int = 500000
+	learning_rate: float = 0.00025
+	num_envs: int = 4
+	num_steps: int = 128
+	gamma: float = 0.99
+	gae_lambda: float = 0.95
+	num_minibatches: int = 4
+	batches_per_epoch: int = 4
+	clip_coef: float = 0.2
+	ent_coef: float = 0.01
+	vf_coef: float = 0.5
+	max_grad_norm: float = 0.5
+	mode: Literal["classic-control", "atari", "mujoco"] = "classic-control"
+
+	def __post_init__(self):
+		self.batch_size = self.num_steps * self.num_envs
+		assert self.batch_size % self.num_minibatches == 0, "batch_size must be divisible by num_minibatches"
+		self.minibatch_size = self.batch_size // self.num_minibatches
+		self.total_epochs = self.total_timesteps // self.batch_size
+		self.total_training_steps = self.total_epochs * self.batches_per_epoch * self.num_minibatches
+
+
+args = PPOArgs(num_minibatches=2)
+utils.arg_help(args)
+```
 
 ## Actor-Critic Agent Implementation ([detail #2](https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/#:~:text=Orthogonal%20Initialization%20of%20Weights%20and%20Constant%20Initialization%20of%20biases))
 
@@ -394,7 +393,11 @@ def get_actor_and_critic(
     '''
     obs_shape = envs.single_observation_space.shape
     num_obs = np.array(obs_shape).prod()
-    num_actions = envs.single_action_space.n
+	num_actions = (
+		envs.single_action_space.n 
+		if isinstance(envs.single_action_space, gym.spaces.Discrete) 
+		else envs.single_action_space.shape[0]
+	)
 
     if mode == "classic-control":
         # YOUR CODE HERE - define actor and critic
@@ -402,10 +405,8 @@ def get_actor_and_critic(
       
     elif mode == "atari":
         raise NotImplementedError("See later in section.")
-    
     elif mode == "mujoco":
         raise NotImplementedError("See `solutions_cts.py`.")
-    
     else:
         raise ValueError(f"Unknown mode {mode}")
 
@@ -429,7 +430,11 @@ def get_actor_and_critic(
     '''
     obs_shape = envs.single_observation_space.shape
     num_obs = np.array(obs_shape).prod()
-    num_actions = envs.single_action_space.n
+	num_actions = (
+		envs.single_action_space.n 
+		if isinstance(envs.single_action_space, gym.spaces.Discrete) 
+		else envs.single_action_space.shape[0]
+	)
 
     if mode == "classic-control":
     
@@ -451,10 +456,8 @@ def get_actor_and_critic(
       
     elif mode == "atari":
         raise NotImplementedError("See later in section.")
-    
     elif mode == "mujoco":
         raise NotImplementedError("See `solutions_cts.py`.")
-    
     else:
         raise ValueError(f"Unknown mode {mode}")
 
@@ -596,9 +599,10 @@ To make this clearer, we've given you the test code inline (so you can see exact
 ```python
 def minibatch_indexes(rng: Generator, batch_size: int, minibatch_size: int) -> List[np.ndarray]:
     '''
-    Return a list of length (batch_size // minibatch_size) where each element is an array of indexes into the batch.
+	Return a list of length num_minibatches = (batch_size // minibatch_size), where each element is an
+	array of indexes into the batch.
 
-    Each index should appear exactly once.
+	Each index should appear exactly once.
     '''
     assert batch_size % minibatch_size == 0
     pass
@@ -620,16 +624,17 @@ print("All tests in `test_minibatch_indexes` passed!")
 
 ```python
 def minibatch_indexes(rng: Generator, batch_size: int, minibatch_size: int) -> List[np.ndarray]:
-    '''
-    Return a list of length (batch_size // minibatch_size) where each element is an array of indexes into the batch.
+	'''
+	Return a list of length num_minibatches = (batch_size // minibatch_size), where each element is an
+	array of indexes into the batch.
 
-    Each index should appear exactly once.
-    '''
-    assert batch_size % minibatch_size == 0
+	Each index should appear exactly once.
+	'''
+	assert batch_size % minibatch_size == 0
     # SOLUTION
-    indices = rng.permutation(batch_size)
-    indices = einops.rearrange(indices, "(mb_num mb_size) -> mb_num mb_size", mb_size=minibatch_size)
-    return list(indices)
+	indices = rng.permutation(batch_size)
+	indices = einops.rearrange(indices, "(mb_num mb_size) -> mb_num mb_size", mb_size=minibatch_size)
+	return list(indices)
 ```
 </details>
 
@@ -709,7 +714,6 @@ A few notes on the code below:
 
 <img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/ppo-buffer-sampling-3.png" width="1200">
 
-
 ```python
 @dataclass
 class ReplayBufferSamples:
@@ -726,80 +730,78 @@ class ReplayBufferSamples:
 
 
 class ReplayBuffer:
-    '''
-    Contains buffer; has a method to sample from it to return a ReplayBufferSamples object.
+	'''
+	Contains buffer; has a method to sample from it to return a ReplayBufferSamples object.
 
-    Needs to be initialized with the first obs, dones and values.
-    '''
-    def __init__(self, args: PPOArgs, envs: gym.vector.SyncVectorEnv):
-        '''Defining all the attributes the buffer's methods will need to access.'''
-        self.rng = np.random.default_rng(args.seed)
-        self.num_envs = envs.num_envs
-        self.obs_shape = envs.single_observation_space.shape
-        self.action_shape = envs.single_action_space.shape
-        self.gamma = args.gamma
-        self.gae_lambda = args.gae_lambda
-        self.batch_size = args.batch_size
-        self.minibatch_size = args.minibatch_size
-        self.num_steps = args.num_steps
-        self.batches_per_epoch = args.batches_per_epoch
-        self.experiences = []
+	Needs to be initialized with the first obs, dones and values.
+	'''
+	def __init__(self, args: PPOArgs, envs: gym.vector.SyncVectorEnv):
+		'''Defining all the attributes the buffer's methods will need to access.'''
+		self.args = args
+		self.rng = np.random.default_rng(args.seed)
+		self.num_envs = envs.num_envs
+		self.obs_shape = envs.single_observation_space.shape
+		self.action_shape = envs.single_action_space.shape
+		self.experiences = []
 
 
-    def add(self, obs: t.Tensor, actions: t.Tensor, rewards: t.Tensor, dones: t.Tensor, logprobs: t.Tensor, values: t.Tensor) -> None:
-        '''
-        obs: shape (n_envs, *observation_shape) 
-            Observation before the action
-        actions: shape (n_envs,) 
-            Action chosen by the agent
-        rewards: shape (n_envs,) 
-            Reward after the action
-        dones: shape (n_envs,) 
-            If True, the episode ended and was reset automatically
-        logprobs: shape (n_envs,)
-            Log probability of the action that was taken (according to old policy)
-        values: shape (n_envs,)
-            Values, estimated by the critic (according to old policy)
-        '''
-        assert obs.shape == (self.num_envs, *self.obs_shape)
-        assert actions.shape == (self.num_envs, *self.action_shape)
-        assert rewards.shape == (self.num_envs,)
-        assert dones.shape == (self.num_envs,)
-        assert logprobs.shape == (self.num_envs,)
-        assert values.shape == (self.num_envs,)
+	def add(self, obs, actions, rewards, dones, logprobs, values) -> None:
+		'''
+		Each argument can be a PyTorch tensor or NumPy array.
 
-        self.experiences.append((obs, dones, actions, logprobs, values, rewards))
+		obs: shape (n_envs, *observation_shape) 
+			Observation before the action
+		actions: shape (n_envs,) 
+			Action chosen by the agent
+		rewards: shape (n_envs,) 
+			Reward after the action
+		dones: shape (n_envs,) 
+			If True, the episode ended and was reset automatically
+		logprobs: shape (n_envs,)
+			Log probability of the action that was taken (according to old policy)
+		values: shape (n_envs,)
+			Values, estimated by the critic (according to old policy)
+		'''
+		assert obs.shape == (self.num_envs, *self.obs_shape)
+		assert actions.shape == (self.num_envs, *self.action_shape)
+		assert rewards.shape == (self.num_envs,)
+		assert dones.shape == (self.num_envs,)
+		assert logprobs.shape == (self.num_envs,)
+		assert values.shape == (self.num_envs,)
+
+		new_experiences_as_tensors = [
+			t.from_numpy(d) if isinstance(d, np.ndarray) else d
+			for d in (obs, dones, actions, logprobs, values, rewards)
+		]
+		self.experiences.append(new_experiences_as_tensors)
 
 
-    def get_minibatches(self, next_value: t.Tensor, next_done: t.Tensor) -> List[ReplayBufferSamples]:
-        minibatches = []
+	def get_minibatches(self, next_value: t.Tensor, next_done: t.Tensor) -> List[ReplayBufferSamples]:
+		minibatches = []	
 
-        # Turn all experiences to tensors on our device (we only want to do this once, not every time we add a new experience)
-        obs, dones, actions, logprobs, values, rewards = [t.stack(arr).to(device) for arr in zip(*self.experiences)]
+		# Stack all experiences, and move them to our device
+		obs, dones, actions, logprobs, values, rewards = [t.stack(arr).to(device) for arr in zip(*self.experiences)]
 
-        # Compute advantages and returns (then get a list of everything we'll need for our replay buffer samples)
-        advantages = compute_advantages(next_value, next_done, rewards, values, dones.float(), self.gamma, self.gae_lambda)
-        returns = advantages + values
-        replaybuffer_args = [obs, dones, actions, logprobs, values, advantages, returns]
-        
-        # We cycle through the entire buffer `self.batches_per_epoch` times
-        for _ in range(self.batches_per_epoch):
+		# Compute advantages and returns (then get list to add to our ReplayBufferSamples)
+		advantages = compute_advantages(next_value, next_done, rewards, values, dones.float(), self.args.gamma, self.args.gae_lambda)
+		returns = advantages + values
+		replaybuffer_args = [obs, dones, actions, logprobs, values, advantages, returns]
+		
+		# For each batch in the epoch, we generate random indices, and use them to get minibatches
+		for _ in range(self.args.batches_per_epoch):
 
-            # Get random indices we'll use to generate our minibatches
-            indices = minibatch_indexes(self.rng, self.batch_size, self.minibatch_size)
+			indices = minibatch_indexes(self.rng, self.args.batch_size, self.args.minibatch_size)
 
-            # Get our new list of minibatches, and add them to the list
-            for index in indices:
-                minibatch = ReplayBufferSamples(*[
-                    arg.flatten(0, 1)[index].to(device) for arg in replaybuffer_args
-                ])
-                minibatches.append(minibatch)
+			for index in indices:
+				minibatch = ReplayBufferSamples(*[
+					arg.flatten(0, 1)[index] for arg in replaybuffer_args
+				])
+				minibatches.append(minibatch)
 
-        # Reset the buffer
-        self.experiences = []
+		# Reset the buffer
+		self.experiences = []
 
-        return minibatches
-
+		return minibatches
 ```
 
 Now, like before, here's some code to generate and plot observations. The dotted lines indicate a terminated episode.
@@ -821,14 +823,11 @@ for i in range(args.num_steps):
     (next_obs, rewards, dones, infos) = envs.step(actions)
     # just dummy values for now, we won't be using them
     logprobs = values = t.zeros(envs.num_envs)
-    # turn everything into a tensor
-    rb.add(*[
-        t.from_numpy(d).to(device) if isinstance(d, np.ndarray) else d
-        for d in (obs, actions, rewards, dones, logprobs, values)
-    ])
+    # add everything to buffer (the casting from arrays to tensors is handled for us)
+    rb.add(obs, dones, actions, logprobs, values, rewards)
     obs = next_obs
 
-obs, dones, actions, logprobs, values, rewards = [t.stack(arr).to(device) for arr in zip(*rb.experiences)]
+obs, dones, actions, logprobs, values, rewards = [t.stack(arr) for arr in zip(*rb.experiences)]
 
 plot_cartpole_obs_and_dones(obs, dones, show_env_jumps=True)
 ```
@@ -910,7 +909,7 @@ class PPOAgent(nn.Module):
         # Define actor and critic (using our previous methods)
         self.actor, self.critic = get_actor_and_critic(envs)
 
-        # Define our first (obs, done, value), so we can start adding experiences to our replay buffer
+        # Define our first (obs, done), so we can start adding experiences to our replay buffer
         self.next_obs = t.tensor(envs.reset()).to(device, dtype=t.float)
         self.next_done = t.zeros(envs.num_envs).to(device, dtype=t.float)
 
@@ -943,62 +942,61 @@ tests.test_ppo_agent(PPOAgent)
 
 ```python
 class PPOAgent(nn.Module):
-    critic: nn.Sequential
-    actor: nn.Sequential
+	critic: nn.Sequential
+	actor: nn.Sequential
 
-    def __init__(self, args: PPOArgs, envs: gym.vector.SyncVectorEnv):
-        super().__init__()
-        self.args = args
-        self.envs = envs
-        self.num_envs = envs.num_envs
+	def __init__(self, args: PPOArgs, envs: gym.vector.SyncVectorEnv):
+		super().__init__()
+		self.args = args
+		self.envs = envs
 
-        # Keep track of global number of steps taken by agent
-        self.steps = 0
-        # Define actor and critic (using our previous methods)
-        self.actor, self.critic = get_actor_and_critic(envs)
+		# Keep track of global number of steps taken by agent
+		self.steps = 0
 
-        # Define our first (obs, done, value), so we can start adding experiences to our replay buffer
-        self.next_obs = t.tensor(envs.reset()).to(device)
-        self.next_done = t.zeros(envs.num_envs).to(device, dtype=t.float)
+		# Get actor and critic networks
+		self.actor, self.critic = get_actor_and_critic(envs, mode=args.mode)
 
-        # Create our replay buffer
-        self.rb = ReplayBuffer(args, envs)
+		# Define our first (obs, done), so we can start adding experiences to our replay buffer
+		self.next_obs = t.tensor(envs.reset()).to(device, dtype=t.float)
+		self.next_done = t.zeros(envs.num_envs).to(device, dtype=t.float)
+
+		# Create our replay buffer
+		self.rb = ReplayBuffer(args, envs)
 
 
-    def play_step(self) -> List[dict]:
-        '''
-        Carries out a single interaction step between the agent and the environment, and adds results to the replay buffer.
-        '''
-        # SOLUTION
-        obs = self.next_obs
-        dones = self.next_done
-        with t.inference_mode():
-            values = self.critic(obs).flatten()
-            logits = self.actor(obs)
-        
-        probs = Categorical(logits=logits)
-        actions = probs.sample()
-        logprobs = probs.log_prob(actions)
-        next_obs, rewards, next_dones, infos = self.envs.step(actions.cpu().numpy())
-        rewards = t.from_numpy(rewards).to(device)
+	def play_step(self) -> List[dict]:
+		'''
+		Carries out a single interaction step between the agent and the environment, and adds results to the replay buffer.
+		'''
+		# SOLUTION
+		obs = self.next_obs
+		dones = self.next_done
+		with t.inference_mode():
+			values = self.critic(obs).flatten()
+			logits = self.actor(obs)
+		
+		probs = Categorical(logits=logits)
+		actions = probs.sample()
+		logprobs = probs.log_prob(actions)
+		next_obs, rewards, next_dones, infos = self.envs.step(actions.cpu().numpy())
 
-        # (s_t, a_t, r_t+1, d_t, logpi(a_t|s_t), v(s_t))
-        self.rb.add(obs, actions, rewards, dones, logprobs, values)
+		# (s_t, a_t, r_t+1, d_t, logpi(a_t|s_t), v(s_t))
+		self.rb.add(obs, actions, rewards, dones, logprobs, values)
 
-        self.next_obs = t.from_numpy(next_obs).to(device)
-        self.next_done = t.from_numpy(next_dones).to(device, dtype=t.float)
-        self.steps += self.envs.num_envs
+		self.next_obs = t.from_numpy(next_obs).to(device, dtype=t.float)
+		self.next_done = t.from_numpy(next_dones).to(device, dtype=t.float)
+		self.steps += self.envs.num_envs
 
-        return infos
-    
+		return infos
+		
 
-    def get_minibatches(self) -> None:
-        '''
-        Gets minibatches from the replay buffer.
-        '''
-        with t.inference_mode():
-            next_value = self.critic(self.next_obs).flatten()
-        return self.rb.get_minibatches(next_value, self.next_done)
+	def get_minibatches(self) -> None:
+		'''
+		Gets minibatches from the replay buffer.
+		'''
+		with t.inference_mode():
+			next_value = self.critic(self.next_obs).flatten()
+		return self.rb.get_minibatches(next_value, self.next_done)
 ```
 </details>
 
@@ -1018,10 +1016,11 @@ def section_2():
     <li class='margtop'><a class='contents-el' href='#objective-function'>Objective function</a></li>
     <li><ul class="contents">
         <li><a class='contents-el' href='#clipped-surrogate-objective'>Clipped Surrogate Objective</a></li>
+        <li><a class='contents-el' href='#exercise-write-clipped-surrogate-objective'><b>Exercise</b> - write <code>calc_clipped_surrogate_objective</code></a></li>
         <li class='margtop'><a class='contents-el' href='#value-function-loss-detail-25'>Value Function Loss (detail #9)</a></li>
-        <li><a class='contents-el' href='#exercise-implement-calc-value-function-loss'><b>Exercise</b> - implement <code>calc_value_function_loss</code></a></li>
+        <li><a class='contents-el' href='#exercise-write-calc-value-function-loss'><b>Exercise</b> - write <code>calc_value_function_loss</code></a></li>
         <li class='margtop'><a class='contents-el' href='#entropy-bonus-detail-10'>Entropy Bonus (detail #10)</a></li>
-        <li><a class='contents-el' href='#exercise-implement-calc-entropy-bonus'><b>Exercise</b> - implement <code>calc_entropy_bonus</code></a></li>
+        <li><a class='contents-el' href='#exercise-write-calc-entropy-bonus'><b>Exercise</b> - write <code>calc_entropy_bonus</code></a></li>
     </ul></li>
     <li class='margtop'><a class='contents-el' href='#adam-optimizer-and-scheduler-details'>Adam Optimizer and Scheduler (details #3 and #4)</a></li>
     <li><ul class="contents">
@@ -1063,6 +1062,14 @@ You can use the `probs.log_prob` method to get the log probabilities that corres
 
 Note - if you're wondering why we're using a `Categorical` type rather than just using `log_prob` directly, it's because we'll be using them to sample actions later on in our `train_ppo` function. Also, categoricals have a useful method for returning the entropy of a distribution (which will be useful for the entropy term in the loss function).
 
+### Exercise - write `calc_clipped_surrogate_objective`
+
+```c
+Difficulty: 🟠🟠🟠⚪⚪
+Importance: 🟠🟠🟠🟠⚪
+
+You should spend up to 10-25 minutes on this exercise.
+```
 
 ```python
 def calc_clipped_surrogate_objective(
@@ -1152,7 +1159,7 @@ The value function loss lets us improve the parameters of our critic. Today we'r
 The PPO paper did a more complicated thing with clipping, but we're going to deviate from the paper and NOT clip, since [detail #9](https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/#:~:text=Value%20Function%20Loss%20Clipping) gives evidence that it isn't beneficial.
 
 
-### Exercise - implement `calc_value_function_loss`
+### Exercise - write `calc_value_function_loss`
 
 ```c
 Difficulty: 🟠🟠⚪⚪⚪
@@ -1235,7 +1242,7 @@ The maximum entropy is $\ln(2) \approx 0.693$ under the uniform random policy ov
 Separately from its role in the loss function, the entropy of our action distribution is a useful diagnostic to have: if the entropy of agent's actions is near the maximum, it's playing nearly randomly which means it isn't learning anything (assuming the optimal policy isn't random). If it is near the minimum especially early in training, then the agent might not be exploring enough.
 
 
-### Exercise - implement `calc_entropy_bonus`
+### Exercise - write `calc_entropy_bonus`
 
 ```c
 Difficulty: 🟠🟠⚪⚪⚪
@@ -1408,7 +1415,7 @@ Finally, we can package this all together into our full training loop.
 
 For a suggested implementation, please refer back to the diagram at the homepage of these exercises (pasted again below for convenience).
 
-<img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/ppo-alg-objects-6.png" width="1300">
+<img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/ppo-alg-objects-diagram2.png" width="1300">
 
 Under this implementation, you have two main methods to implement - `rollout_phase` and `learning_phase`. These will do the following:
 
@@ -1428,7 +1435,7 @@ Under this implementation, you have two main methods to implement - `rollout_pha
 A few notes to help you:
 
 * The `agent.get_minibatches()` function empties the list of experiences stored in the replay buffer, so you don't need to worry about doing this manually.
-* You can log variables using `wandb.log({"variable_name": variable_value}, steps=steps)`.
+* You can log variables using `wandb.log({"variable_name": variable_value}, step=step)`.
 * The `agent.play_step()` method returns a list of dictionaries containing data about the current run. If the agent terminated at that step, then the dictionary will contain `{"episode": {"l": episode_length, "r": episode_reward}}`.
 * You might want to create a separate method like `_compute_ppo_objective(minibatch)` which returns the objective function (to keep your code clean for the `learning_phase` method).
 * For clipping gradients, you can use `nn.utils.clip_grad_norm(parameters, max_norm)` (see [here](https://pytorch.org/docs/stable/generated/torch.nn.utils.clip_grad_norm_.html) for more details).
@@ -1443,7 +1450,8 @@ for epoch in args.total_epochs:
     # log any relevant variables
 ```
 
-As an indication, the solution's implementation (ignoring logging) has the following properties:
+As an indication, the solution's implementation (ignoring logging variables & displaying / updating progress bars) has the following properties:
+
 * 2 lines for `rollout_phase`
 * 8 lines for `learning_phase`
 * 8 lines for `_compute_ppo_objective`
@@ -1463,22 +1471,24 @@ Importance: 🟠🟠🟠🟠🟠
 You should spend up to 30-60 minutes on this exercise (including logging).
 ```
 
-If you get stuck at any point during this implementation, please ask a TA for help!
+If you get stuck at any point during this implementation, you can look at the solutions or send a message in the Slack channel for help.
 
 ```python
 class PPOTrainer:
 
-    def __init__(self, args: PPOArgs):
-        super().__init__()
-        self.args = args
-        set_global_seeds(args.seed)
-        self.run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-        self.envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed + i, i, args.capture_video, self.run_name, args.mode) for i in range(args.num_envs)])
-        self.agent = PPOAgent(self.args, self.envs).to(device)
-        self.optimizer, self.scheduler = make_optimizer(self.agent, self.args.total_training_steps, self.args.learning_rate, 0.0)
-        if args.use_wandb:
-            wandb.init(project=args.wandb_project_name, entity=args.wandb_entity, name=args.exp_name)
-            if args.capture_video: wandb.gym.monitor()
+	def __init__(self, args: PPOArgs):
+		set_global_seeds(args.seed)
+		self.args = args
+		self.run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+		self.envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed + i, i, args.capture_video, self.run_name, args.mode) for i in range(args.num_envs)])
+		self.agent = PPOAgent(self.args, self.envs).to(device)
+		self.optimizer, self.scheduler = make_optimizer(self.agent, self.args.total_training_steps, self.args.learning_rate, 0.0)
+		if args.use_wandb: wandb.init(
+            project=args.wandb_project_name,
+            entity=args.wandb_entity,
+            name=self.run_name,
+            monitor_gym=args.capture_video
+        )
 
 
     def rollout_phase(self):
@@ -1497,17 +1507,19 @@ class PPOTrainer:
 ```python
 class PPOTrainer:
 
-    def __init__(self, args: PPOArgs):
-        super().__init__()
-        self.args = args
-        set_global_seeds(args.seed)
-        self.run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-        self.envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed + i, i, args.capture_video, self.run_name, args.mode) for i in range(args.num_envs)])
-        self.agent = PPOAgent(self.args, self.envs).to(device)
-        self.optimizer, self.scheduler = make_optimizer(self.agent, self.args.total_training_steps, self.args.learning_rate, 0.0)
-        if args.use_wandb:
-            wandb.init(project=args.wandb_project_name, entity=args.wandb_entity, name=args.exp_name, config=args)
-            if args.capture_video: wandb.gym.monitor()
+	def __init__(self, args: PPOArgs):
+		set_global_seeds(args.seed)
+		self.args = args
+		self.run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+		self.envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed + i, i, args.capture_video, self.run_name, args.mode) for i in range(args.num_envs)])
+		self.agent = PPOAgent(self.args, self.envs).to(device)
+		self.optimizer, self.scheduler = make_optimizer(self.agent, self.args.total_training_steps, self.args.learning_rate, 0.0)
+		if self.args.use_wandb: wandb.init(
+            project=args.wandb_project_name,
+            entity=args.wandb_entity,
+            name=self.run_name,
+            monitor_gym=args.capture_video
+        )
 
 
     def rollout_phase(self):
@@ -1520,7 +1532,7 @@ class PPOTrainer:
                 if "episode" in info.keys():
                     last_episode_len = info["episode"]["l"]
                     last_episode_return = info["episode"]["r"]
-                    if args.use_wandb: wandb.log({
+                    if self.args.use_wandb: wandb.log({
                         "episode_length": last_episode_len,
                         "episode_return": last_episode_return,
                     }, step=self.agent.steps)
@@ -1535,7 +1547,7 @@ class PPOTrainer:
         for minibatch in minibatches:
             objective_fn = self._compute_ppo_objective(minibatch)
             objective_fn.backward()
-            nn.utils.clip_grad_norm_(self.agent.parameters(), args.max_grad_norm)
+            nn.utils.clip_grad_norm_(self.agent.parameters(), self.args.max_grad_norm)
             self.optimizer.step()
             self.optimizer.zero_grad()
             self.scheduler.step()
@@ -1560,7 +1572,7 @@ class PPOTrainer:
             ratio = logratio.exp()
             approx_kl = (ratio - 1 - logratio).mean().item()
             clipfracs = [((ratio - 1.0).abs() > self.args.clip_coef).float().mean().item()]
-        if args.use_wandb: wandb.log(dict(
+        if self.args.use_wandb: wandb.log(dict(
             total_steps = self.agent.steps,
             values = values.mean().item(),
             learning_rate = self.scheduler.optimizer.param_groups[0]["lr"],
@@ -1602,17 +1614,19 @@ def train(args: PPOArgs) -> PPOAgent:
 ```python
 class PPOTrainer:
 
-    def __init__(self, args: PPOArgs):
-        super().__init__()
-        self.args = args
-        set_global_seeds(args.seed)
-        self.run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
-        self.envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed + i, i, args.capture_video, self.run_name, args.mode) for i in range(args.num_envs)])
-        self.agent = PPOAgent(self.args, self.envs).to(device)
-        self.optimizer, self.scheduler = make_optimizer(self.agent, self.args.total_training_steps, self.args.learning_rate, 0.0)
-        if args.use_wandb:
-            wandb.init(project=args.wandb_project_name, entity=args.wandb_entity, name=self.run_name, config=args)
-            if args.capture_video: wandb.gym.monitor()
+	def __init__(self, args: PPOArgs):
+		set_global_seeds(args.seed)
+		self.args = args
+		self.run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+		self.envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed + i, i, args.capture_video, self.run_name, args.mode) for i in range(args.num_envs)])
+		self.agent = PPOAgent(self.args, self.envs).to(device)
+		self.optimizer, self.scheduler = make_optimizer(self.agent, self.args.total_training_steps, self.args.learning_rate, 0.0)
+		if args.use_wandb: wandb.init(
+            project=args.wandb_project_name,
+            entity=args.wandb_entity,
+            name=self.run_name,
+            monitor_gym=args.capture_video
+        )
 
 
     def rollout_phase(self):
@@ -1629,7 +1643,7 @@ class PPOTrainer:
         for minibatch in minibatches:
             objective_fn = self._compute_ppo_objective(minibatch)
             objective_fn.backward()
-            nn.utils.clip_grad_norm_(self.agent.parameters(), args.max_grad_norm)
+            nn.utils.clip_grad_norm_(self.agent.parameters(), self.args.max_grad_norm)
             self.optimizer.step()
             self.optimizer.zero_grad()
             self.scheduler.step()
@@ -1714,6 +1728,17 @@ for probe_idx in range(1, 6):
 ```
 
 Once you've passed the tests for all 5 probe environments, you should test your model on Cartpole.
+                
+Uncomment the `warnings` code below to suppress all warnings for `gym` (they can mess with your progress bars in an annoying way!). It only has to be run once.
+                
+```python
+# import warnings
+# warnings.filterwarnings("ignore", category=DeprecationWarning, module='gym.*');
+# warnings.filterwarnings("ignore", category=UserWarning, module='gym.*');
+
+args = PPOArgs(use_wandb=True)
+agent = train(args)
+```
 
 <details>
 <summary>Question - if you've done this correctly (and logged everything), clipped surrogate objective will be close to zero. Does this mean that it's not important in the overall algorithm (compared to the components of the objective function which are larger)?</summary>
@@ -1725,7 +1750,7 @@ Clipped surrogate objective is a moving target. At each rollout phase, we genera
 As we make update steps in the learning phase, the policy values $\pi(a_t \mid s_t)$ will increase for actions which have positive advantages, and decrease for actions which have negative advantages, so the clipped surrogate objective will no longer be zero in expectation. But (thanks to the fact that we're clipping changes larger than $\epsilon$) it will still be very small.
 
 </details>
-
+                
 ### Catastrophic forgetting
 
 Note - you might see performance very high initially and then drop off rapidly (before recovering again).
@@ -1834,7 +1859,7 @@ class EasyCart(CartPoleEnv):
         return (obs, rew_new, done, info)
 ```
 
-The resulting loss curve:
+The result:
 
 <img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/best-episode-length.png" width="600">
 
@@ -2038,9 +2063,14 @@ def get_actor_and_critic(
     '''
     obs_shape = envs.single_observation_space.shape
     num_obs = np.array(obs_shape).prod()
-    num_actions = envs.single_action_space.n
+	num_actions = (
+		envs.single_action_space.n 
+		if isinstance(envs.single_action_space, gym.spaces.Discrete) 
+		else envs.single_action_space.shape[0]
+	)
 
     if mode == "classic-control":
+        pass
         # Your earlier code should go here
       
     elif mode == "atari":
@@ -2072,7 +2102,11 @@ def get_actor_and_critic(
     '''
     obs_shape = envs.single_observation_space.shape
     num_obs = np.array(obs_shape).prod()
-    num_actions = envs.single_action_space.n
+	num_actions = (
+		envs.single_action_space.n 
+		if isinstance(envs.single_action_space, gym.spaces.Discrete) 
+		else envs.single_action_space.shape[0]
+	)
 
     if mode == "classic-control":
         # Your earlier code should go here
@@ -2140,30 +2174,29 @@ Importance: 🟠⚪⚪⚪⚪
 You should spend up to 5-10 minutes on this exercise.
 ```
 
-You should now go back and edit some of your PPO functions. You shouldn't have to change much - all that you need to do is add `mode = args.mode` as a keyword argument to both your `make_env` function (when you call it inside `PPOTrainer`) and your `get_actor_and_critic` function (when you call it inside `PPOAgent`).
-
-<details>
-<summary>Solution</summary>
-
-You can see the solutions in the `part3_ppo/solutions.py` file. The changes which had to be made were the following lines:
-
-In the `__init__` method of `PPOAgent`:
-
-```python
-self.actor, self.critic = get_actor_and_critic(envs, mode=args.mode)
-```
-
-and in the `__init__` method of `PPOTrainer`:
-
-```python
-self.envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed + i, i, args.capture_video, self.run_name, args.mode) for i in range(args.num_envs)])
-```
-
-</details>
+You should now go back and check over your PPO functions, to make sure they're suitable for Atari. You shouldn't have to change much at all (maybe nothing, depending on how you implemented your functions). All that you need to do is make sure `mode = args.mode` is a keyword argument for both your `make_env` function (when you call it inside `PPOTrainer`) and your `get_actor_and_critic` function (when you call it inside `PPOAgent`).
 
 ## Training Atari
 
 Now, you should be able to run an Atari training loop! 
+
+We recommend you use the following parameters, for fidelity:
+
+```python
+args = PPOArgs(
+    env_id = "ALE/Breakout-v5",
+    wandb_project_name = "PPOAtari",
+    use_wandb = True,
+    mode = "atari",
+    clip_coef = 0.1,
+    num_envs = 8,
+)
+agent = train(args)
+```
+
+Note that this will probably take a lot longer to train than your previous experiments, because the architecture is much larger, and finding an initial strategy is much harder than it was for CartPole.
+
+[Here](https://wandb.ai//callum-mcdougall/PPOAtari/reports/videos-23-07-09-22-00-05---Vmlldzo0ODM3NjU0?accessToken=d7mha9o16ng5jtgwtz4pf00cbjoqe3kt82m5nyvuetng3f1n222n3oh5ckzcr3lg) is a link to video performance of the Breakout agent I got from the parameters above (all the code is in `solutions.py`). With this (and MuJoCo later), you might want to perform a few different runs (with different `args.seed` values).
 
 ### A note on debugging crashed kernels 
 
@@ -2176,21 +2209,6 @@ which annoyingly doesn't tell you much about the nature or location of the error
 For instance, you might start with `agent = train(args)`, and if this fails without an informative error message then you might try replacing it with the actual contents of the `train` function (which should involve the methods `trainer.rollout_phase()` and `trainer.learning_phase()`). If the problem is in `rollout_phase`, you can again replace this line with the actual contents of this method.
 
 If you're working in `.py` files rather than `.ipynb`, a useful tip - as well as running `Shift + Enter` to run the cell your cursor is in, if you have text highlighted (and you've turned on `Send Selection To Interactive Window` in VSCode settings) then using `Shift + Enter` will run just the code you've highlighted. This could be a single variable name, a single line, or a single block of code.
-
-```python
-args = PPOArgs(
-    env_id = "ALE/Breakout-v5",
-    wandb_project_name = "PPOAtari",
-    use_wandb = True,
-    mode = "atari",
-    clip_coef = 0.1,
-    num_envs = 8,
-)
-```
-
-Note that this will probably take a lot longer to train than your previous experiments, because the architecture is much larger, and finding an initial strategy is much harder than it was for CartPole.
-
-[Here](https://wandb.ai//callum-mcdougall/PPOAtari/reports/videos-23-07-09-22-00-05---Vmlldzo0ODM3NjU0?accessToken=d7mha9o16ng5jtgwtz4pf00cbjoqe3kt82m5nyvuetng3f1n222n3oh5ckzcr3lg) is a link to video performance of the Breakout agent I got from the parameters above (the code is in `solutions.py`). During training I would occasionally get runs where performance stayed flat for a while at the start before suddenly starting to improve, so this is something to be aware of.
 
 """, unsafe_allow_html=True)
 
@@ -2247,7 +2265,7 @@ To test that this works, run the following:
 envs = gym.make("Hopper-v3")
 ```
 
-The first time you run this, it might take a while, and throw up several warnings and messages. But the cell should still run without raising an exception, and all subsequent times you run it, it should be a lot faster.
+The first time you run this, it might take about 1-2 minutes, and throw up several warnings and messages. But the cell should still run without raising an exception, and all subsequent times you run it, it should be a lot faster (with no error messages).
 
 You can see what the environment looks like with:
 
@@ -2270,6 +2288,8 @@ def update(frame):
 animation = FuncAnimation(fig, update, frames=imgs.shape[0], blit=True, interval=30)
 animation.save('animation.mp4', dpi=80, writer='ffmpeg')
 ```
+
+which saves a simple animation that you should be able to see in your local storage.
 
 ## Action space
 
@@ -2302,13 +2322,13 @@ How do we deal with a continuous action space, when it comes to choosing actions
 
 ## Implementational details of MuJoCo
 
-### Clipping, Scaling & Normalisation (details #5-9)
+### Clipping, Scaling & Normalisation ([details #5-9](https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/#:~:text=Handling%20of%20action%20clipping%20to%20valid%20range%20and%20storage))
 
 Just like for Atari, there are a few messy implementational details which will be taken care of with gym wrappers. For example, if we generate our actions by sampling from a normal distribution, then there's some non-zero chance that our action will be outside of the allowed action space. We deal with this by clipping the actions to be within the allowed range (in this case between -1 and 1).
 
 See the function `prepare_mujoco_env` within `part3_ppo/utils` (and read details 5-9 on the PPO page) for more information.
 
-### Actor and Critic networks (details #1-4)
+### Actor and Critic networks ([details #1-4](https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/#:~:text=Continuous%20actions%20via%20normal%20distributions))
 
 Our actor and critic networks are quite similar to the ones we used for cartpole. They won't have shared architecture. 
 
@@ -2381,22 +2401,39 @@ class Actor(nn.Module):
 
 
 def get_actor_and_critic(
-    envs: gym.vector.SyncVectorEnv,
-    mode: Literal["classic-control", "atari", "mujoco"],
-) -> Tuple[Actor, Critic]:
-    '''
-    Returns (actor, critic), the networks used for PPO.
-    '''
-    assert mode == "mujoco"
+	envs: gym.vector.SyncVectorEnv,
+	mode: Literal["classic-control", "atari", "mujoco"] = "classic-control",
+) -> Tuple[nn.Module, nn.Module]:
+	'''
+	Returns (actor, critic), the networks used for PPO.
+	'''
+	obs_shape = envs.single_observation_space.shape
+	num_obs = np.array(obs_shape).prod()
+	num_actions = (
+		envs.single_action_space.n 
+		if isinstance(envs.single_action_space, gym.spaces.Discrete) 
+		else envs.single_action_space.shape[0]
+	)
 
-    obs_shape = envs.single_observation_space.shape
-    num_obs = np.array(obs_shape).prod()
-    num_actions = envs.single_action_space.shape[0] # rather than '.n', because cts action space
+	if mode == "classic-control":
+		pass
+        # Your code from earlier should go here
 
-    actor = Actor(num_obs, num_actions).to(device)
-    critic = Critic(num_obs).to(device)
+	elif mode == "atari":
+		pass
+        # Your code from earlier should go here
+	
+	elif mode == "mujoco":
+		actor = Actor(num_obs, num_actions)
+		critic = Critic(num_obs)
+	
+	else:
+		raise ValueError(f"Unknown mode {mode}")
+  
+	return actor.to(device), critic.to(device)
 
-    return actor, critic
+
+tests.test_get_actor_and_critic(get_actor_and_critic, mode="mujoco")
 ```
 
 <details>
@@ -2420,7 +2457,6 @@ class Critic(nn.Module):
         # YOUR CODE HERE - fwd pass, return value
         value = self.critic(obs)
         return value
-
 
 
 class Actor(nn.Module):
@@ -2447,26 +2483,6 @@ class Actor(nn.Module):
         sigma = t.exp(self.actor_log_sigma).broadcast_to(mu.shape)
         dist = t.distributions.Normal(mu, sigma)
         return mu, sigma, dist
-    
-
-
-def get_actor_and_critic(
-    envs: gym.vector.SyncVectorEnv,
-    mode: Literal["classic-control", "atari", "mujoco"],
-) -> Tuple[Actor, Critic]:
-    '''
-    Returns (actor, critic), the networks used for PPO.
-    '''
-    assert mode == "mujoco"
-
-    obs_shape = envs.single_observation_space.shape
-    num_obs = np.array(obs_shape).prod()
-    num_actions = envs.single_action_space.shape[0] # rather than '.n', because cts action space
-
-    actor = Actor(num_obs, num_actions).to(device)
-    critic = Critic(num_obs).to(device)
-
-    return actor, critic
 ```
 
 </details>
@@ -2503,7 +2519,7 @@ So you'll need to sum logprobs and entropy over the last dimension. The logprobs
 
 You should log `mu` and `sigma` during the learning phase.
 
-#### Misc
+#### Misc.
 
 You'll need to replace `envs.single_action_space.n` with `envs.single_action_space.shape[0]` wherever it appears (because the action space is continuous, so it doesn't have a `.n` attribute).
 
@@ -2523,6 +2539,7 @@ args = PPOArgs(
     num_steps = 2048,
     num_envs = 1,
 )
+agent = train(args)
 ```
 
 Although we've used `Hopper-v3` in these examples, you might also want to try `InvertedPendulum-v2`. It's a much easier environment to solve, and it's a good way to check that your implementation is working (after all if it worked for CartPole then it should work here - in fact your inverted pendulum agent should converge to a perfect solution almost instantly, no reward shaping required). You can check out the other MuJoCo environments [here](https://www.gymlibrary.dev/environments/mujoco/).
@@ -2549,7 +2566,7 @@ def section_6():
     st.markdown(r"""
 # 6️⃣ Bonus
 
-Here are a few bonus exercises. They're ordered (approximately) from easiest to hardest.
+Here are a few bonus exercises. They're ordered (approximately) from easiest to hardest. You can take a crack at some of these, or move on to the next section (RLHF).
 
 ## Trust Region Methods
 

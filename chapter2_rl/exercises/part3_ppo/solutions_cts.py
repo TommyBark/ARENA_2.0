@@ -26,6 +26,7 @@ section_dir = exercises_dir / "part3_ppo"
 if str(exercises_dir) not in sys.path: sys.path.append(str(exercises_dir))
 
 from part3_ppo.utils import set_global_seeds, make_env
+import part3_ppo.tests as tests
 
 from part3_ppo.solutions import (
 	PPOArgs,
@@ -46,6 +47,10 @@ Arr = np.ndarray
 device = t.device("cuda" if t.cuda.is_available() else "cpu")
 
 MAIN = __name__ == "__main__"
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, module='gym.*')
+warnings.filterwarnings("ignore", category=UserWarning, module='gym.*')
 
 # %%
 
@@ -110,24 +115,36 @@ class Actor(nn.Module):
 
 def get_actor_and_critic(
 	envs: gym.vector.SyncVectorEnv,
-	mode: Literal["classic-control", "atari", "mujoco"],
+	mode: Literal["classic-control", "atari", "mujoco"] = "classic-control",
 ) -> Tuple[nn.Module, nn.Module]:
 	'''
 	Returns (actor, critic), the networks used for PPO.
-
-	Note - if you're reading this before the atari section, then ignore the code in the `if atari` block, just look at the `else` block.
 	'''
-	assert mode == "mujoco"
-
 	obs_shape = envs.single_observation_space.shape
 	num_obs = np.array(obs_shape).prod()
-	num_actions = envs.single_action_space.shape[0]
+	num_actions = (
+		envs.single_action_space.n 
+		if isinstance(envs.single_action_space, gym.spaces.Discrete) 
+		else envs.single_action_space.shape[0]
+	)
 
-	actor = Actor(num_obs, num_actions).to(device)
-	critic = Critic(num_obs).to(device)
+	if mode == "classic-control":
+		raise Exception("This function was only designed for MuJoCo. See `solutions.py` for others.")
 
-	return actor, critic
+	elif mode == "atari":
+		raise Exception("This function was only designed for MuJoCo. See `solutions.py` for others.")
+	
+	elif mode == "mujoco":
+		actor = Actor(num_obs, num_actions)
+		critic = Critic(num_obs)
+	
+	else:
+		raise ValueError(f"Unknown mode {mode}")
+  
+	return actor.to(device), critic.to(device)
 
+if MAIN:
+	tests.test_get_actor_and_critic(get_actor_and_critic, mode="mujoco")
 
 # %%
 # Most code below this line is the same as in `solutions.py`, just with some small modifications (denoted by the comment `# CHANGED`).
@@ -166,7 +183,6 @@ class PPOAgent(nn.Module):
 		# CHANGED (sum over action space to get logprobs)
 		logprobs = dist.log_prob(actions).sum(-1)
 		next_obs, rewards, next_dones, infos = self.envs.step(actions.cpu().numpy())
-		rewards = t.from_numpy(rewards).to(device)
 
 		self.rb.add(obs, actions, rewards, dones, logprobs, values)
 
@@ -240,18 +256,20 @@ def calc_entropy_bonus(dist: t.distributions.Normal, ent_coef: float):
 # %% 3️⃣ TRAINING LOOP
 
 class PPOTrainer:
-	agent: PPOAgent
 
 	def __init__(self, args: PPOArgs):
-		self.args = args
 		set_global_seeds(args.seed)
+		self.args = args
 		self.run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 		self.envs = gym.vector.SyncVectorEnv([make_env(args.env_id, args.seed + i, i, args.capture_video, self.run_name, args.mode) for i in range(args.num_envs)])
 		self.agent = PPOAgent(self.args, self.envs).to(device)
 		self.optimizer, self.scheduler = make_optimizer(self.agent, self.args.total_training_steps, self.args.learning_rate, 0.0)
-		if args.use_wandb:
-			wandb.init(project=args.wandb_project_name, entity=args.wandb_entity, name=self.run_name)
-			if args.capture_video: wandb.gym.monitor()
+		if args.use_wandb: wandb.init(
+            project=args.wandb_project_name,
+            entity=args.wandb_entity,
+            name=self.run_name,
+            monitor_gym=args.capture_video
+        )
 
 
 	def rollout_phase(self):
@@ -263,11 +281,10 @@ class PPOTrainer:
 				if "episode" in info.keys():
 					last_episode_len = info["episode"]["l"]
 					last_episode_return = info["episode"]["r"]
-					if args.use_wandb: wandb.log({
+					if self.args.use_wandb: wandb.log({
 						"episode_length": last_episode_len,
 						"episode_return": last_episode_return,
 					}, step=self.agent.steps)
-		# Return this for use in the progress bar
 		return last_episode_len
 
 
@@ -277,7 +294,7 @@ class PPOTrainer:
 		for minibatch in minibatches:
 			objective_fn = self._compute_ppo_objective(minibatch)
 			objective_fn.backward()
-			nn.utils.clip_grad_norm_(self.agent.parameters(), args.max_grad_norm)
+			nn.utils.clip_grad_norm_(self.agent.parameters(), self.args.max_grad_norm)
 			self.optimizer.step()
 			self.optimizer.zero_grad()
 			self.scheduler.step()
@@ -301,7 +318,7 @@ class PPOTrainer:
 			ratio = logratio.exp()
 			approx_kl = (ratio - 1 - logratio).mean().item()
 			clipfracs = [((ratio - 1.0).abs() > self.args.clip_coef).float().mean().item()]
-		if args.use_wandb: wandb.log(dict(
+		if self.args.use_wandb: wandb.log(dict(
 			total_steps = self.agent.steps,
 			values = values.mean().item(),
 			learning_rate = self.scheduler.optimizer.param_groups[0]["lr"],
@@ -351,6 +368,7 @@ if MAIN and ("Hopper" in RUN_TRAINING):
 		num_minibatches = 32,
 		num_steps = 2048,
 		num_envs = 1,
+		seed = 0,
 	)
 	agent = train(args)
 

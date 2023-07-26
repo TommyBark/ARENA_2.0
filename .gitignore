@@ -1,4 +1,5 @@
 /lambda_script_private.sh
+.direnv
 *__pycache__
 *generate_*.py
 *drafts
@@ -9,11 +10,13 @@
 *models
 *data
 *wandb
+*videos
 *logs
 secrets.toml
 *attn_only_2L_half.pth
-serimats_app
 *othello_world*
 *Grokking
 *04_PPO.py
 *.ipynb
+*interp_on_model.ipynb
+*gitignore

@@ -1,8 +1,13 @@
-
 import os, sys
 from pathlib import Path
 chapter = r"chapter1_transformers"
-instructions_dir = Path(f"{os.getcwd().split(chapter)[0]}/{chapter}/instructions").resolve()
+for instructions_dir in [
+    Path(f"{os.getcwd().split(chapter)[0]}/{chapter}/instructions").resolve(),
+    Path("/app/arena_2.0/chapter1_transformers/instructions").resolve(),
+    Path("/mount/src/arena_2.0/chapter1_transformers/instructions").resolve(),
+]:
+    if instructions_dir.exists():
+        break
 if str(instructions_dir) not in sys.path: sys.path.append(str(instructions_dir))
 os.chdir(instructions_dir)
 
@@ -30,16 +35,16 @@ def section_0():
 </ul></li>""", unsafe_allow_html=True)
 
     st.markdown(r"""
-<img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/wheel3-2.png" width="350">
+# [1.5] Grokking and Modular Arithmetic
 
-Colab: [**exercises**](https://colab.research.google.com/drive/1OCM_AlnsbC6VkaFXXp9KEYzlu_Mz8rJa) | [**solutions**](https://colab.research.google.com/drive/1vUvQVDB3oBzL2vStjY4yOoG3L2akV8vu)
+### Colab: [**exercises**](https://colab.research.google.com/drive/1OCM_AlnsbC6VkaFXXp9KEYzlu_Mz8rJa) | [**solutions**](https://colab.research.google.com/drive/1vUvQVDB3oBzL2vStjY4yOoG3L2akV8vu)
 
 Please send any problems / bugs on the `#errata` channel in the [Slack group](https://join.slack.com/t/arena-la82367/shared_invite/zt-1uvoagohe-JUv9xB7Vr143pdx1UBPrzQ), and ask any questions on the dedicated channels for this chapter of material.
 
 You can toggle dark mode from the buttons on the top-right of this page.
 
+<img src="https://raw.githubusercontent.com/callummcdougall/computational-thread-art/master/example_images/misc/wheel3-2.png" width="350">
 
-# [1.5] Grokking and Modular Arithmetic
 
 
 ## Introduction
